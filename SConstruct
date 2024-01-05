@@ -634,7 +634,7 @@ add_option(
 
 add_option(
     'linker',
-    choices=['auto', 'gold', 'lld', 'bfd'],
+    choices=['auto', 'gold', 'lld', 'bfd', 'mold'],
     default='auto',
     help='Specify the type of linker to use.',
     type='choice',
@@ -3579,7 +3579,16 @@ def doConfigure(myenv):
             myenv.FatalError(f"Linker {linker_ld} is not supported with dynamic link model builds.")
         else:
             if not myenv.AddToLINKFLAGSIfSupported(f'-fuse-ld={linker_ld}'):
-                myenv.FatalError(f"Linker {linker_ld} could not be configured.")
+                if linker_ld == 'mold' and \
+                   (env.ToolchainIs('gcc') and \
+                       SCons.Util.Version(env['CXX_VERSION']) < SCons.Util.Version("12.1.0")) and \
+                   ((os.path.isdir('/usr/libexec/mold') and \
+                       myenv.AddToLINKFLAGSIfSupported('-B/usr/libexec/mold')) or \
+                   (os.path.isdir('/usr/local/libexec/mold') and \
+                       myenv.AddToLINKFLAGSIfSupported('-B/usr/local/libexec/mold'))):
+                    pass # support mold
+                else:
+                    myenv.FatalError(f"Linker {linker_ld} could not be configured.")
 
         if has_option('gcov') and myenv.AddToCCFLAGSIfSupported('-fprofile-update=single'):
             myenv.AppendUnique(LINKFLAGS=['-fprofile-update=single'])
